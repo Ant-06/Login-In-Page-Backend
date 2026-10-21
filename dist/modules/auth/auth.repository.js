@@ -15,7 +15,7 @@ const createUser = async (email, hashedPassword) => {
 };
 exports.createUser = createUser;
 const findUserById = async (id) => {
-    return user_model_1.default.findById(id).select('-password');
+    return user_model_1.default.findById(id).select("-password");
 };
 exports.findUserById = findUserById;
 //# sourceMappingURL=auth.repository.js.map

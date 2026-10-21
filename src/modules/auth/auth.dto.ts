@@ -1,14 +1,33 @@
-import { z } from 'zod';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  MaxLength,
+  MinLength,
+} from "class-validator";
 
-const emailSchema = z.string().trim().email();
-const passwordSchema = z.string().trim().min(1);
+export class RegisterDto {
+  @IsEmail()
+  @IsString()
+  @MaxLength(254)
+  email!: string;
 
-export const registerSchema = z.object({
-  email: emailSchema,
-  password: passwordSchema
-});
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
+  @MaxLength(128)
+  password!: string;
+}
 
-export const loginSchema = z.object({
-  email: emailSchema,
-  password: passwordSchema
-});
+export class LoginDto {
+  @IsEmail()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(254)
+  email!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  password!: string;
+}

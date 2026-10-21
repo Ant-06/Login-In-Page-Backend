@@ -1,27 +1,55 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authenticateToken = void 0;
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const env_1 = __importDefault(require("../config/env"));
-const authenticateToken = (req, res, next) => {
+const jwt_1 = require("../utils/jwt");
+const response_1 = require("../utils/response");
+const session_repository_1 = require("../modules/auth/session.repository");
+const auth_repository_1 = require("../modules/auth/auth.repository");
+const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-        return res.status(401).json({ success: false, message: 'Access token required', tokenValid: false });
+        return (0, response_1.sendError)(res, 401, "Access token required", [
+            { message: "Authorization header is required" },
+        ]);
     }
-    const [type, token] = authHeader.split(' ');
-    if (type !== 'Bearer' || !token) {
-        return res.status(401).json({ success: false, message: 'Invalid authorization format', tokenValid: false });
+    const parts = authHeader.split(" ");
+    if (parts.length !== 2 || parts[0] !== "Bearer" || !parts[1]) {
+        return (0, response_1.sendError)(res, 401, "Invalid authorization format");
     }
+    const token = parts[1];
+    // 1. Separate JWT verification and claims validation
+    let decoded;
     try {
-        const decoded = jsonwebtoken_1.default.verify(token, env_1.default.JWT_SECRET);
-        req.user = decoded;
-        next();
+        decoded = (0, jwt_1.verifyAccessToken)(token);
     }
-    catch (err) {
-        return res.status(403).json({ success: false, message: 'Invalid or expired token', tokenValid: false });
+    catch {
+        return (0, response_1.sendError)(res, 401, "Invalid or expired token");
+    }
+    if (!decoded ||
+        typeof decoded.userId !== "string" ||
+        typeof decoded.email !== "string" ||
+        typeof decoded.sessionId !== "string" ||
+        decoded.type !== "access") {
+        return (0, response_1.sendError)(res, 401, "Invalid or expired token");
+    }
+    // 2. Database and session checks (isolated so database errors reach centralized error handler)
+    try {
+        const [session, user] = await Promise.all([
+            (0, session_repository_1.findActiveSession)(decoded.sessionId, decoded.userId),
+            (0, auth_repository_1.findUserById)(decoded.userId),
+        ]);
+        if (!session) {
+            return (0, response_1.sendError)(res, 401, "Session is no longer active");
+        }
+        if (!user || (user.status && user.status !== "active")) {
+            return (0, response_1.sendError)(res, 403, "Account is not active");
+        }
+        req.user = decoded;
+        return next();
+    }
+    catch (dbError) {
+        // Database connectivity or query errors must reach centralized error middleware
+        return next(dbError);
     }
 };
 exports.authenticateToken = authenticateToken;
