@@ -12,7 +12,7 @@ const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const auth_routes_1 = __importDefault(require("./modules/auth/auth.routes"));
 const error_middleware_1 = __importDefault(require("./middleware/error.middleware"));
 const openapi_1 = __importDefault(require("./config/openapi"));
-const response_1 = require("./utils/response");
+const app_util_1 = require("./core/app.util");
 const createApp = () => {
     const app = (0, express_1.default)();
     const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:4200")
@@ -31,17 +31,17 @@ const createApp = () => {
         standardHeaders: "draft-8",
         legacyHeaders: false,
         skip: () => process.env.NODE_ENV === "test",
-        handler: (req, res) => (0, response_1.sendError)(res, 429, "Too many authentication attempts. Please try again later."),
+        handler: (req, res) => (0, app_util_1.sendError)(res, 429, "Too many authentication attempts. Please try again later."),
     });
     // routes
     app.use("/api/auth/login", authLimiter);
     app.use("/api/auth/register", authLimiter);
     app.use("/api/auth", auth_routes_1.default);
     app.get("/", (req, res) => {
-        (0, response_1.sendSuccess)(res, 200, "Angular Login API is running", null);
+        (0, app_util_1.sendSuccess)(res, 200, "Angular Login API is running", null);
     });
     app.use((req, res) => {
-        (0, response_1.sendError)(res, 404, "Route not found");
+        (0, app_util_1.sendError)(res, 404, "Route not found");
     });
     // error handling
     app.use(error_middleware_1.default);

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { sendError } from "../utils/response";
+import { sendError } from "../core/app.util";
 
 const errorHandler = (
   err: any,

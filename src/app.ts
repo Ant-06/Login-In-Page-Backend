@@ -7,7 +7,7 @@ import swaggerUi from "swagger-ui-express";
 import authRoutes from "./modules/auth/auth.routes";
 import errorMiddleware from "./middleware/error.middleware";
 import openApiDocument from "./config/openapi";
-import { sendError, sendSuccess } from "./utils/response";
+import { sendError, sendSuccess } from "./core/app.util";
 
 const createApp = (): Application => {
   const app = express();

@@ -1,7 +1,8 @@
-import { Request, Response, NextFunction } from "express";
 import { AuthService } from "./auth.service";
 import { AuthRequest } from "../../middleware/auth.middleware";
-import { sendError, sendSuccess } from "../../utils/response";
+import { LoginDto, RegisterDto } from "./auth.dto";
+import { Validator } from "../../core/validator/validator.service";
+import { RouteInput } from "../../core/router/router.service";
 import env from "../../config/env";
 
 const refreshCookieOptions = {
@@ -12,76 +13,121 @@ const refreshCookieOptions = {
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
-const setRefreshCookie = (res: Response, token: string) =>
-  res.cookie("refreshToken", token, refreshCookieOptions);
-const clearRefreshCookie = (res: Response) =>
-  res.clearCookie("refreshToken", {
+function setRefreshCookie(input: RouteInput, token: string): void {
+  input.setCookie("refreshToken", token, refreshCookieOptions);
+}
+
+function clearRefreshCookie(input: RouteInput): void {
+  input.clearCookie("refreshToken", {
     ...refreshCookieOptions,
     maxAge: undefined,
   });
+}
 
 export class AuthController {
-  static async register(req: Request, res: Response) {
-    const { email, password } = req.body;
+  @Validator(RegisterDto)
+  static async register(input: RouteInput) {
+    const { email, password } = input.body;
     const user = await AuthService.register(email, password);
-    return sendSuccess(res, 201, "User registered successfully", { user });
-  }
 
-  static async login(req: Request, res: Response) {
-    const { email, password } = req.body;
-    const result = await AuthService.login(email, password);
-    setRefreshCookie(res, result.refreshToken);
-    const publicResult = {
-      accessToken: result.accessToken,
-      user: result.user,
+    return {
+      status: 201,
+      message: "User registered successfully",
+      data: { user },
     };
-    return sendSuccess(res, 200, "Login successful", publicResult);
   }
 
-  static async refresh(req: Request, res: Response, next: NextFunction) {
-    const refreshToken = req.cookies?.refreshToken;
+  @Validator(LoginDto)
+  static async login(input: RouteInput) {
+    const { email, password } = input.body;
+    const result = await AuthService.login(email, password);
+
+    setRefreshCookie(input, result.refreshToken);
+
+    return {
+      status: 200,
+      message: "Login successful",
+      data: {
+        accessToken: result.accessToken,
+        user: result.user,
+      },
+    };
+  }
+
+  static async refresh(input: RouteInput) {
+    const refreshToken = input.cookies?.refreshToken;
+
     if (!refreshToken || typeof refreshToken !== "string") {
-      clearRefreshCookie(res);
-      return sendError(res, 401, "Invalid or expired refresh token");
+      clearRefreshCookie(input);
+      throw { status: 401, message: "Invalid or expired refresh token" };
     }
 
     try {
       const result = await AuthService.refresh(refreshToken);
-      setRefreshCookie(res, result.refreshToken);
-      const publicResult = {
-        accessToken: result.accessToken,
-        user: result.user,
-      };
-      return sendSuccess(res, 200, "Token refreshed", publicResult);
-    } catch (err: any) {
-      // Expected authentication/authorization failures from AuthService
-      // have a numeric status property (401, 403).
-      const isExpectedAuthError =
-        typeof err.status === "number" &&
-        (err.status === 401 || err.status === 403);
 
-      if (isExpectedAuthError) {
-        clearRefreshCookie(res);
-        return sendError(res, err.status, err.message);
+      setRefreshCookie(input, result.refreshToken);
+
+      return {
+        status: 200,
+        message: "Token refreshed",
+        data: {
+          accessToken: result.accessToken,
+          user: result.user,
+        },
+      };
+    } catch (error: any) {
+      if (error?.status === 401 || error?.status === 403) {
+        clearRefreshCookie(input);
       }
 
-      // Unexpected errors (DB failures, programming errors) — forward to
-      // the centralized error handler; do not turn them into 401s.
-      return next(err);
+      throw error;
     }
   }
 
-  static async logout(req: Request, res: Response) {
-    await AuthService.logout(req.cookies?.refreshToken);
-    clearRefreshCookie(res);
-    return sendSuccess(res, 200, "Logout successful", null);
+  static async logout(input: RouteInput) {
+    await AuthService.logout(input.cookies?.refreshToken);
+    clearRefreshCookie(input);
+
+    return {
+      status: 200,
+      message: "Logout successful",
+      data: null,
+    };
   }
 
-  static async me(req: AuthRequest, res: Response) {
-    if (!req.user) {
-      return sendError(res, 401, "Access token required");
+  static async me(input: RouteInput) {
+    const user = input.user as AuthRequest["user"];
+
+    if (!user) {
+      throw { status: 401, message: "Access token required" };
     }
-    const user = await AuthService.me(req.user.userId);
-    return sendSuccess(res, 200, "User profile", user);
+
+    const profile = await AuthService.me(user.userId);
+
+    return {
+      status: 200,
+      message: "User profile",
+      data: profile,
+    };
+  }
+
+  static async check(input: RouteInput) {
+    const user = input.user as AuthRequest["user"];
+
+    if (!user) {
+      throw { status: 401, message: "Access token required" };
+    }
+
+    return {
+      status: 200,
+      message: "JWT Token is valid",
+      data: {
+        tokenValid: true,
+        user: {
+          id: user.userId,
+          email: user.email,
+        },
+      },
+    };
   }
 }

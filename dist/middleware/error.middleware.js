@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const response_1 = require("../utils/response");
+const app_util_1 = require("../core/app.util");
 const errorHandler = (err, req, res, next) => {
     if (res.headersSent) {
         return next(err);
@@ -12,9 +12,9 @@ const errorHandler = (err, req, res, next) => {
         console.error("Request failed:", err instanceof Error ? err.message : "Unknown error");
     }
     if (err instanceof SyntaxError && "body" in err) {
-        return (0, response_1.sendError)(res, 400, "Invalid JSON request body");
+        return (0, app_util_1.sendError)(res, 400, "Invalid JSON request body");
     }
-    return (0, response_1.sendError)(res, status, status >= 500 ? "Internal Server Error" : err.message || "Request failed", status < 500 && Array.isArray(err.errors) ? err.errors : []);
+    return (0, app_util_1.sendError)(res, status, status >= 500 ? "Internal Server Error" : err.message || "Request failed", status < 500 && Array.isArray(err.errors) ? err.errors : []);
 };
 exports.default = errorHandler;
 //# sourceMappingURL=error.middleware.js.map

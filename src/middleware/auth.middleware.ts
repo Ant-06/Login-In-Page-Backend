@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "../utils/jwt";
-import { sendError } from "../utils/response";
+import { sendError } from "../core/app.util";
 import { findActiveSession } from "../modules/auth/session.repository";
 import { findUserById } from "../modules/auth/auth.repository";
 

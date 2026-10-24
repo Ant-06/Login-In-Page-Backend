@@ -1,30 +1,49 @@
 import { Router } from "express";
 import { AuthController } from "./auth.controller";
+import { authenticateToken } from "../../middleware/auth.middleware";
 import {
-  authenticateToken,
-  AuthRequest,
-} from "../../middleware/auth.middleware";
-import { sendSuccess } from "../../utils/response";
-import { validateBody } from "../../middleware/validation.middleware";
-import { LoginDto, RegisterDto } from "./auth.dto";
+  createRouter,
+  registerRoute,
+} from "../../core/router/router.service";
 
-const router = Router();
+const router: Router = createRouter();
 
-// Registration and login
-router.post("/register", validateBody(RegisterDto), AuthController.register);
-router.post("/login", validateBody(LoginDto), AuthController.login);
-router.post("/refresh", AuthController.refresh);
-router.post("/logout", AuthController.logout);
+registerRoute(router, "post", "/register", AuthController, "register", {
+  status: 201,
+  message: "User registered successfully",
+});
 
-// Protected routes
-router.get("/me", authenticateToken, AuthController.me);
-router.get("/dashboard", authenticateToken, AuthController.me); // backward compatible
-router.get("/check", authenticateToken, async (req: AuthRequest, res) => {
-  const user = req.user;
-  return sendSuccess(res, 200, "JWT Token is valid", {
-    tokenValid: true,
-    user: { id: user?.userId, email: user?.email },
-  });
+registerRoute(router, "post", "/login", AuthController, "login", {
+  status: 200,
+  message: "Login successful",
+});
+
+registerRoute(router, "post", "/refresh", AuthController, "refresh", {
+  status: 200,
+  message: "Token refreshed",
+});
+
+registerRoute(router, "post", "/logout", AuthController, "logout", {
+  status: 200,
+  message: "Logout successful",
+});
+
+registerRoute(router, "get", "/me", AuthController, "me", {
+  middleware: [authenticateToken],
+  status: 200,
+  message: "User profile",
+});
+
+registerRoute(router, "get", "/dashboard", AuthController, "me", {
+  middleware: [authenticateToken],
+  status: 200,
+  message: "User profile",
+});
+
+registerRoute(router, "get", "/check", AuthController, "check", {
+  middleware: [authenticateToken],
+  status: 200,
+  message: "JWT Token is valid",
 });
 
 export default router;
